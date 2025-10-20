@@ -85,6 +85,14 @@ function gts_fetch_comments_html($status_id, $instance, $headers) {
 
 // ---------------- 状态获取 + 图片输出 ------------------
 function gts_fetch_statuses_html($username, $instance, $limit = 10, $max_id = '') {
+    // --- 缓存优化开始 ---
+    $cache_key = 'gts_statuses_' . md5("{$username}_{$instance}_{$limit}_{$max_id}");
+    
+    // 如果是首页请求 (无 max_id) 且有缓存，直接返回缓存
+    if (empty($max_id) && ($cached_html = get_transient($cache_key))) {
+        return $cached_html; 
+    }
+    // --- 缓存优化结束 ---
     $headers = [];
     $token = trim(get_option('gts_access_token'));
     if (!empty($token)) {
@@ -143,6 +151,11 @@ function gts_fetch_statuses_html($username, $instance, $limit = 10, $max_id = ''
         $html .= $interactions;
         $html .= "<div class='gts-comments'>{$comments_html}<a class='gts-view-comments-link' href='{$status['url']}' target='_blank' rel='noopener noreferrer'>查看更多评论</a></div>";
         $html .= "</div>";
+    }
+    // --- 缓存优化开始 ---
+    // 如果是首页请求 (无 max_id)，将生成的 HTML 写入缓存 10 分钟
+    if (empty($max_id)) {
+        set_transient($cache_key, $html, 10 * MINUTE_IN_SECONDS);
     }
     return $html;
 }
